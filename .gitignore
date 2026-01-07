@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*.pyc
+.venv/
+.env
+*.log
+.DS_Store
+docker-compose.override.yml
+.vscode/
+.idea/
+*.swp
