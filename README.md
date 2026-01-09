@@ -1,27 +1,32 @@
 # FieldGuard - Livestock Health Monitoring System
 
-FieldGuard is a multi-phase, Docker-based project that simulates livestock health data, streams it through Apache Kafka and prepares the foundation for anomaly detection, APIs, and dashboards. Phase 1 focuses on setting up the infrastructure on Windows using Docker compose (Kafka, Zookeeper, MongoDB, and MySQL).
+FieldGuard is a multi-phase, event-driven project that simulates livestock health data, streams it through Apache Kafka, and processes it for anomaly detection.
+
+**Phase 1 & 2 are complete:** The project currently provisions a full data infrastructure via Docker and runs a realistic Python-based simulator that generates complex telemetry (GPS, heart rate, temperature) based on biological state machines.
 
 ## Project Goals
 
-- Provide an end-to-end, realistic data streaming/ backend project centered on livestock health. 
-- Use **event-driven architecture** with Kafka as the message broker. 
-- Store data in both **MongoDB** (for alerts/documents) and **MySQL** (for relational/job data).
+- **Realistic Simulation:** Move beyond random number generation by using state machines to simulate biological health events (Healthy -> Incubating -> Fever -> Recovery).
+- **Event-Driven Architecture:** Utilize Apache Kafka as the central nervous system for data streaming.
+- **Hybrid Storage:** Store data in **MongoDB** (document store for alerts/logs) and **MySQL** (relational data for farm management).
 
 ---
 
-## Phase 1 - Infrastructure (Windows + Docker)
+## Architecture & Phases
 
-### Services Provisioned
+### Phase 1 - Infrastructure (Docker)
+Infrastructure is managed via `docker-compose.yml` on Windows/Linux:
+- **Zookeeper:** Manages Kafka broker metadata.
+- **Kafka:** Handles the `animal-health-stream` topic. Configured with dual listeners (Internal for Docker, External for Host).
+- **MongoDB:** NoSQL storage for incoming health alerts.
+- **MySQL:** Relational storage for farm configurations.
 
-All services are started via `docker-compose.yml`:
-
-- **Zookeeper** - Coordinates Kafka broker metadata. 
-- **Kafka** - Message broker for livestock telemetry. 
-    - Internal listener for Docker network. 
-    - External listener for the Windows host. 
-- **MongoDB** - NoSQL store for alerts and health events. 
-- **MySQL** - Relational database for jobs, configurations, and aggregated data. 
+### Phase 2 - Livestock Simulator (Python)
+A sophisticated producer service that:
+- Simulates a herd of **50 animals** (Cows, Sheep, Goats).
+- Uses **Geofencing logic** to constrain movement within simulated pastures.
+- Implements a **Health State Machine** where animals can contract illnesses, exhibit symptoms (fever, low rumination), and recover or deteriorate.
+- Streams JSON telemetry to Kafka in real-time.
 
 ---
 
@@ -32,6 +37,8 @@ fieldguard-project/
 ├── docker-compose/
 |   └── docker-compose.yml     
 ├── livestock-simulator/
+│   ├── animal_model.py        
+│   ├── simulator.py           
 ├── anomaly-detector/
 ├── fieldguard-backend/
 ├── README.md 
@@ -40,147 +47,113 @@ fieldguard-project/
 ```
 ---
 
-## Docker Compose Overview
-
-The `docker-compose.yml` file (in `docker-compose/`)
-defines four services:
-
-- `zookeeper`
-- `kafka`
-- `mongo`
-- `mysql`
-
-Key points: 
-
-- Kafka is configured with **two advertised listeners**:
-    - Internal: `PLAINTEXT://kafka:29092` (for containers on the Docker network)
-    - External: `PLAINTEXT_HOST://host.docker.internal:9092` (for the Windows host).
-- MongoDB is secured with root username and password
-- MySQL is initialized with root password and a database (`fieldguard`).
-
----
-
 ## Getting Started
 
-### Prerequisites 
+### Prerequisites
+- **Docker Desktop** 
+- **Python 3.8+**
+- **Git**
 
-- **Docker Desktop** installed and running on Windows. 
-- **Git** version control and publishing project
-
-### 1. Start the infrastructure
-
-From a terminal in the `docker-compose` folder:
+### 1. Start the Infrastructure (Phase 1)
+From the `docker-compose` folder:
 
 ```powershell
 cd .\docker-compose
 docker-compose up -d
+```
+Verify containers are running:
+```powershell
 docker-compose ps
 ```
-You should see all four containers 
-- `zookeeper`
-- `kafka`
-- `mongo`
-- `mysql` in `Up` state
 
-If any service fails, check logs:
-
-```powershell
-# Check specific service
-docker-compose logs kafka
-docker-compose logs mysql
-docker-compose logs mongo
-
-# View all logs
-docker-compose logs -f
-
-# Stop all services
-docker-compose down
-
-# Remove everything and start fresh
-docker-compose down -v
-docker-compose up -d
-```
-
-### 2. Create Kafka Topic 
-
-Create the topic used for livestock health streaming:
+### 2. Setup Kafka Topic
+Create the topic that the simulator will write to:
 
 ```powershell
 # Enter Kafka container
 docker exec -it kafka bash
 
-# Inside container, create topic
+# Create topic
 kafka-topics --create --topic animal-health-stream \
   --bootstrap-server localhost:29092 \
   --partitions 3 \
   --replication-factor 1
 
-# Verify topic created
-kafka-topics --list --bootstrap-server localhost:29092
-```
-You should see:
-
-```text
-animal-health-stream
-```
-
----
-
-## Verifying Databases
-
-### MongoDB
-
-```powershell
-# Connect to MongoDB
-docker exec -it mongo mongosh -u admin -p admin123
-
-# Inside MongoDB shell:
-use fieldguard
-db.health_alerts.insertOne({test: "hello"})
-db.health_alerts.find()
-
-# Exit
+# Exit container
 exit
 ```
 
-### MySQL
+### 3. Run the Simulator (Phase 2)
+The simulator runs locally on the host machine and talks to Kafka on port `9092`.
+
+1. **Install Dependencies:**
+   Create a `requirements.txt` inside `livestock-simulator/` with the content `kafka-python`, then install:
+   ```powershell
+   cd ..\livestock-simulator
+   pip install -r requirements.txt
+   ```
+
+2. **Run the Simulation:**
+   ```powershell
+   python simulator.py
+   ```
+
+**What to expect:**
+- The console will show herd status (e.g., `[Iteration 10] Sending 50 messages | Sick: 2 | Low Batt: 0`).
+- If an animal gets sick, you will see a console alert: `ALERT: Cow #12 is FEVER (Temp: 40.5°C)`.
+- Data is now flowing into the Kafka topic `animal-health-stream`.
+
+---
+
+## Data Model
+The simulator generates realistic JSON packets. Example payload:
+
+```json
+{
+    "animal_id": 12,
+    "timestamp": "2026-01-08T11:05:00+00:00",
+    "location": {
+        "lat": 35.00023,
+        "lon": -97.00045
+    },
+    "metrics": {
+        "temperature": 39.2,
+        "heart_rate": 78,
+        "rumination_index": 45,
+        "battery_level": 98.5
+    },
+    "_debug_state": "HEALTHY"
+}
+```
+
+### Simulation Logic Details
+- **Movement:** Animals perform a "random walk" but are nudged back if they cross the geofence radius of their assigned pasture.
+- **Vitals:**
+  - **Healthy:** metrics drift naturally around species baselines.
+  - **Fever:** Temperature spikes, heart rate increases, rumination drops.
+  - **Battery:** Slowly drains; simulates IoT hardware constraints.
+
+---
+
+## Verifying Data Flow
+
+To ensure Phase 2 is talking to Phase 1, you can run a console consumer inside the Docker container:
 
 ```powershell
-# Connect to MySQL
-docker exec -it mysql mysql -u root -p
-
-# Password: root123
-
-# Inside MySQL:
-SHOW DATABASES;
-USE fieldguard;
-SHOW TABLES;
-
-# Exit
-exit
+docker exec -it kafka kafka-console-consumer \
+  --bootstrap-server localhost:29092 \
+  --topic animal-health-stream \
+  --from-beginning
 ```
----
-
-## Future Phases (Planned)
-
-- **Phase 2 - Livestock Simulator & Kafka Producer**
-    - Python-based simulator generating heart rate, temperature, and location data for ~50 animals. 
-    - Publishes messages to `animal-health-stream` topic in Kafka. 
-
-- **Phase 3 - Anomaly Detection & Backend**
-    - Anomaly detection service consuming from Kafka and writing alerts to MongoDB/MySQL. 
-    - Spring Boot or similar backend exposing REST APIs. 
-
-- **Phase 4 - Dashboard**
-    - Web UI for viewing real-time alerts, historical data, and animal health status. 
+You should see a stream of JSON data appearing in real-time.
 
 ---
 
-## Status 
+## Status & Roadmap
 
-- ✅ Phase 1 -  Docker infrastructure and topic setup completed. 
-- ⏳Phase 2 - Simulator and anomaly detection in progress. 
-- ⏳Phase 3 - Backend/Service layer planned. 
-- ⏳Phase 4 - Dashboard/UI planned. 
+| Phase | Component | Tech Stack | Status |
+| :--- | :--- | :--- | :--- |
+| **1** | **Infrastructure** | Docker, Zookeeper, Kafka, MySQL, Mongo | ✅ **Completed** |
+| **2** | **Simulator** | Python, OOP, State Machines, Kafka Producer | ✅ **Completed** |
 
---- 
+---
