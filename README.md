@@ -2,12 +2,13 @@
 
 FieldGuard is a multi-phase, event-driven project that simulates livestock health data, streams it through Apache Kafka, and processes it for anomaly detection.
 
-**Phase 1 & 2 are complete:** The project currently provisions a full data infrastructure via Docker and runs a realistic Python-based simulator that generates complex telemetry (GPS, heart rate, temperature) based on biological state machines.
+**Phases 1, 2 & 3 are complete:** The project currently provisions a full data infrastructure via Docker, runs a realistic Python-based simulator, and utilizes **Unsupervised Machine Learning** to detect health anomalies in real-time without hardcoded rules.
 
 ## Project Goals
 
 - **Realistic Simulation:** Move beyond random number generation by using state machines to simulate biological health events (Healthy -> Incubating -> Fever -> Recovery).
 - **Event-Driven Architecture:** Utilize Apache Kafka as the central nervous system for data streaming.
+- **Intelligent Analysis:** Use **Isolation Forest** algorithms to learn "normal" herd behavior and automatically flag deviations (sickness/distress).
 - **Hybrid Storage:** Store data in **MongoDB** (document store for alerts/logs) and **MySQL** (relational data for farm management).
 
 ---
@@ -28,29 +29,39 @@ A sophisticated producer service that:
 - Implements a **Health State Machine** where animals can contract illnesses, exhibit symptoms (fever, low rumination), and recover or deteriorate.
 - Streams JSON telemetry to Kafka in real-time.
 
+### Phase 3 - Anomaly Detection (Machine Learning)
+A real-time consumer service using **Scikit-Learn**:
+- **Trainer (`trainer.py`):** Listens to the stream for a set period to learn the statistical baseline of a "healthy" herd. Generates a serialized model (`brain.pkl`).
+- **Detector (`detector.py`):** Loads the trained model and performs real-time inference on live Kafka messages.
+- **Algorithm:** Uses **Isolation Forest** (Unsupervised Learning) to detect outliers in multi-dimensional data (Temperature vs Heart Rate vs Rumination).
+
 ---
 
 ## Repository Structure
 
-```text 
+```text
 fieldguard-project/
+├── requirements.txt           # Python dependencies (Main)
 ├── docker-compose/
-|   └── docker-compose.yml     
+│   └── docker-compose.yml     # Infrastructure definitions
 ├── livestock-simulator/
-│   ├── animal_model.py        
-│   ├── simulator.py           
+│   ├── animal_model.py        # OO Logic: State machine, GPS movement, Biology
+│   ├── simulator.py           # Main Loop: Kafka Producer & Herd Management
 ├── anomaly-detector/
-├── fieldguard-backend/
-├── README.md 
-├── requirements.txt
-├── .gitignore
+│   ├── trainer.py             # ML Training Script (Run Once)
+│   ├── detector.py            # Real-time Inference Script (Run Continuously)
+│   └── brain.pkl              # Trained Model (Generated file)
+├── fieldguard-backend/        # (Planned Phase 4)
+├── README.md
+└── .gitignore
 ```
+
 ---
 
 ## Getting Started
 
 ### Prerequisites
-- **Docker Desktop** 
+- **Docker Desktop**
 - **Python 3.8+**
 - **Git**
 
@@ -87,21 +98,46 @@ exit
 The simulator runs locally on the host machine and talks to Kafka on port `9092`.
 
 1. **Install Dependencies:**
-   Create a `requirements.txt` inside `livestock-simulator/` with the content `kafka-python`, then install:
+   Since you are currently in `docker-compose/`, go back to the root to find `requirements.txt`:
    ```powershell
-   cd ..\livestock-simulator
+   cd ..
    pip install -r requirements.txt
    ```
 
 2. **Run the Simulation:**
+   Navigate into the simulator folder and start:
    ```powershell
+   cd livestock-simulator
    python simulator.py
+   ```
+   *Leave this terminal running. It acts as the data source.*
+
+### 4. Run Anomaly Detection (Phase 3)
+Open a **new terminal** to run the Machine Learning components.
+
+1. **Install ML Dependencies:**
+   ```powershell
+   pip install scikit-learn pandas numpy
+   ```
+
+2. **Train the Brain (First Run Only):**
+   Ensure the Simulator is running. Run the trainer to learn what "Healthy" looks like.
+   ```powershell
+   cd ..\anomaly-detector
+   python trainer.py
+   ```
+   *Wait for it to collect 30,000 messages and save `brain.pkl`.*
+
+3. **Start the Detector:**
+   Once trained, start the real-time monitoring:
+   ```powershell
+   python detector.py
    ```
 
 **What to expect:**
-- The console will show herd status (e.g., `[Iteration 10] Sending 50 messages | Sick: 2 | Low Batt: 0`).
-- If an animal gets sick, you will see a console alert: `ALERT: Cow #12 is FEVER (Temp: 40.5°C)`.
-- Data is now flowing into the Kafka topic `animal-health-stream`.
+- The detector will print dots `......` indicating healthy animals.
+- If the Simulator generates a sick animal (e.g., `ALERT: Cow #12 is FEVER`), the Detector will immediately interrupt and print:
+  `🚨 ANOMALY DETECTED for Cow #12 | AI Prediction: SICK`.
 
 ---
 
@@ -155,5 +191,6 @@ You should see a stream of JSON data appearing in real-time.
 | :--- | :--- | :--- | :--- |
 | **1** | **Infrastructure** | Docker, Zookeeper, Kafka, MySQL, Mongo | ✅ **Completed** |
 | **2** | **Simulator** | Python, OOP, State Machines, Kafka Producer | ✅ **Completed** |
-
----
+| **3** | **Anomaly Detection** | Python, Scikit-Learn (Isolation Forest) | ✅ **Completed** |
+| **4** | **Backend Service** | Spring Boot, Kafka Consumer, JPA | ⏳ Next Step |
+| **5** | **Dashboard** | React/Angular or Streamlit | ⏳ Planned |
