@@ -1,11 +1,60 @@
+# ========================
+# Python (Simulator & ML)
+# ========================
 __pycache__/
 *.py[cod]
 *.pyc
 venv/
 .env
+.venv/
 *.log
-.DS_Store
-docker-compose.override.yml
+
+# ========================
+# Java / Maven (Backend)
+# ========================
+# Ignore the build directory (where the .jar and classes are compiled)
+target/
+**/target/
+
+# Ignore compiled class files
+*.class
+
+# Ignore packaged binaries (unless you specifically want to commit them)
+*.jar
+*.war
+*.ear
+
+# Spring Boot specific logs
+*.log
+logs/
+
+# ========================
+# IDEs & Editors
+# ========================
+# VS Code
 .vscode/
+
+# IntelliJ IDEA
 .idea/
-*.swp
+*.iml
+*.iws
+*.ipr
+
+# Eclipse
+.classpath
+.project
+.settings/
+.springBeans
+
+# ========================
+# OS & System Files
+# ========================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ========================
+# Docker
+# ========================
+docker-compose.override.yml
