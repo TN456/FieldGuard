@@ -2,7 +2,7 @@
 
 FieldGuard is a multi-phase, event-driven project that simulates livestock health data, streams it through Apache Kafka, and processes it for anomaly detection.
 
-**Phases 1, 2 & 3 are complete:** The project currently provisions a full data infrastructure via Docker, runs a realistic Python-based simulator, and utilizes **Unsupervised Machine Learning** to detect health anomalies in real-time without hardcoded rules.
+**Phases 1, 2, 3 & 4 are complete:** The project currently runs a realistic Python simulation, uses ML to detect anomalies, and now includes a robust **Spring Boot Backend** to filter, process, and persist critical alerts to a database.
 
 ## Project Goals
 
@@ -10,6 +10,7 @@ FieldGuard is a multi-phase, event-driven project that simulates livestock healt
 - **Event-Driven Architecture:** Utilize Apache Kafka as the central nervous system for data streaming.
 - **Intelligent Analysis:** Use **Isolation Forest** algorithms to learn "normal" herd behavior and automatically flag deviations (sickness/distress).
 - **Hybrid Storage:** Store data in **MongoDB** (document store for alerts/logs) and **MySQL** (relational data for farm management).
+- **Backend Processing:** A Spring Boot service that consumes the stream, filters for critical events (e.g., Fever > 40°C), and persists them for the dashboard. 
 
 ---
 
@@ -35,6 +36,13 @@ A real-time consumer service using **Scikit-Learn**:
 - **Detector (`detector.py`):** Loads the trained model and performs real-time inference on live Kafka messages.
 - **Algorithm:** Uses **Isolation Forest** (Unsupervised Learning) to detect outliers in multi-dimensional data (Temperature vs Heart Rate vs Rumination).
 
+### Phase 4 - Backend Service (Spring Boot)
+The core application server that connects the raw data to the user:
+- **Kafka Consumer:** Listens to the 'animal-health-stream' topic.
+- **Filtering Logic:** Ignores "normal" data; only processes anomalies or high-severity events. 
+- **Persistence:** Saves critical alerts into **MongoDB** and updates animal status in **MySQL**. 
+- **REST API:** Exposes endpoints (e.g., `GET /api/alerts`) for the frontend dashboard. 
+
 ---
 
 ## Repository Structure
@@ -51,7 +59,11 @@ fieldguard-project/
 │   ├── trainer.py             # ML Training Script (Run Once)
 │   ├── detector.py            # Real-time Inference Script (Run Continuously)
 │   └── brain.pkl              # Trained Model (Generated file)
-├── fieldguard-backend/        # (Planned Phase 4)
+├── fieldguard-backend/        # Spring Boot Application
+│   ├── src/main/java/         # Java Source Code             
+│   ├── src/main/resources/     # Config (application.yml)
+│   ├── pom.xml                # Maven Dependencies
+│   └── mvnw                   # Maven Wrapper
 ├── README.md
 └── .gitignore
 ```
@@ -64,6 +76,7 @@ fieldguard-project/
 - **Docker Desktop**
 - **Python 3.8+**
 - **Git**
+- **Java 17+**
 
 ### 1. Start the Infrastructure (Phase 1)
 From the `docker-compose` folder:
@@ -139,6 +152,26 @@ Open a **new terminal** to run the Machine Learning components.
 - If the Simulator generates a sick animal (e.g., `ALERT: Cow #12 is FEVER`), the Detector will immediately interrupt and print:
   `🚨 ANOMALY DETECTED for Cow #12 | AI Prediction: SICK`.
 
+### 5. Run the Backend (Phase 4)
+Open a **third terminal** to run the Java Spring Boot application. 
+
+**Option A: Terminal:**
+1. **Navigate to the backend folder:**
+   ```powershell
+   cd fieldguard-backend
+   ```
+
+2. **Run the application:**
+   ```powershell
+   .\mvnw spring-boot:run
+   ```
+
+**Option B: Intellij IDEA:**
+1. Open the **fieldguard-backend** folder in Intellij. 
+2. Navigate to `src/main/java/com/fieldguard/backend/FieldguardBackendApplication.java`
+3. Click the **Green Run Arrow** next to class name.
+
+*Wait until you see "Started FieldguardBackendApplication". You can now verify the API is working by visiting: `http://localhost:8080/api/alerts`*
 ---
 
 ## Data Model
@@ -192,5 +225,5 @@ You should see a stream of JSON data appearing in real-time.
 | **1** | **Infrastructure** | Docker, Zookeeper, Kafka, MySQL, Mongo | ✅ **Completed** |
 | **2** | **Simulator** | Python, OOP, State Machines, Kafka Producer | ✅ **Completed** |
 | **3** | **Anomaly Detection** | Python, Scikit-Learn (Isolation Forest) | ✅ **Completed** |
-| **4** | **Backend Service** | Spring Boot, Kafka Consumer, JPA | ⏳ Next Step |
-| **5** | **Dashboard** | React/Angular or Streamlit | ⏳ Planned |
+| **4** | **Backend Service** | Spring Boot, Kafka Consumer, JPA | ✅ **Completed** |
+| **5** | **Dashboard** | HTML/JS | ⏳ Next Step |
