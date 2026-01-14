@@ -57,7 +57,7 @@ try:
     print("Training Isolation Forest")
 
     # Create a DataFrame with clear column names
-    df = pd.DataFrame(data_buffer, columns = ['temperature', 'heart_rate', 'rumination'])
+    df = pd.DataFrame(data_buffer, columns = ['temperature', 'heart_rate', 'rumination_index'])
 
     # Train the model (contamination = 0.01 means ~1% anomalies expected)
     model = IsolationForest(n_estimators = 100, contamination = 0.01, random_state = 42)
