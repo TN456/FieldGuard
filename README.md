@@ -2,7 +2,7 @@
 
 FieldGuard is a multi-phase, event-driven project that simulates livestock health data, streams it through Apache Kafka, and processes it for anomaly detection.
 
-**Phases 1, 2, 3 & 4 are complete:** The project currently runs a realistic Python simulation, uses ML to detect anomalies, and now includes a robust **Spring Boot Backend** to filter, process, and persist critical alerts to a database.
+**All Phases (1-5) are complete:** The project features a full End-to-End IoT pipeline: from a Python-based biological simulator, through Kafka streaming and ML analysis, to a Spring Boot Backend, and a real-time **HTML/JS Dashboard**. 
 
 ## Project Goals
 
@@ -11,6 +11,7 @@ FieldGuard is a multi-phase, event-driven project that simulates livestock healt
 - **Intelligent Analysis:** Use **Isolation Forest** algorithms to learn "normal" herd behavior and automatically flag deviations (sickness/distress).
 - **Hybrid Storage:** Store data in **MongoDB** (document store for alerts/logs) and **MySQL** (relational data for farm management).
 - **Backend Processing:** A Spring Boot service that consumes the stream, filters for critical events (e.g., Fever > 40°C), and persists them for the dashboard. 
+- **Real-Time Visualization:** A responsive **HTML5 Dashboard** that polls the backend API to display critical health alerts and system status live.
 
 ---
 
@@ -43,6 +44,12 @@ The core application server that connects the raw data to the user:
 - **Persistence:** Saves critical alerts into **MongoDB** and updates animal status in **MySQL**. 
 - **REST API:** Exposes endpoints (e.g., `GET /api/alerts`) for the frontend dashboard. 
 
+### Phase 5 - Dashboard 
+A lightweight, standalone web interface:
+- **Technology:** HTML5, CSS3, Vanilla Javascript
+- **Features:** Auto-refreshing table, visual severity badges, and connection status monitoring.
+- **Design:** Uses Google Fonts (Inter) and a clean, responsive UI layout.
+
 ---
 
 ## Repository Structure
@@ -64,6 +71,8 @@ fieldguard-project/
 │   ├── src/main/resources/     # Config (application.yml)
 │   ├── pom.xml                # Maven Dependencies
 │   └── mvnw                   # Maven Wrapper
+├── frontend/                  # Dashboard
+│   └── index.html             # Single-page Live monitor
 ├── README.md
 └── .gitignore
 ```
@@ -77,6 +86,7 @@ fieldguard-project/
 - **Python 3.8+**
 - **Git**
 - **Java 17+**
+- **Web Browser** (Chrome/Edge/Firefox)
 
 ### 1. Start the Infrastructure (Phase 1)
 From the `docker-compose` folder:
@@ -128,12 +138,7 @@ The simulator runs locally on the host machine and talks to Kafka on port `9092`
 ### 4. Run Anomaly Detection (Phase 3)
 Open a **new terminal** to run the Machine Learning components.
 
-1. **Install ML Dependencies:**
-   ```powershell
-   pip install scikit-learn pandas numpy
-   ```
-
-2. **Train the Brain (First Run Only):**
+1. **Train the Brain (First Run Only):**
    Ensure the Simulator is running. Run the trainer to learn what "Healthy" looks like.
    ```powershell
    cd ..\anomaly-detector
@@ -141,16 +146,11 @@ Open a **new terminal** to run the Machine Learning components.
    ```
    *Wait for it to collect 30,000 messages and save `brain.pkl`.*
 
-3. **Start the Detector:**
+2. **Start the Detector:**
    Once trained, start the real-time monitoring:
    ```powershell
    python detector.py
    ```
-
-**What to expect:**
-- The detector will print dots `......` indicating healthy animals.
-- If the Simulator generates a sick animal (e.g., `ALERT: Cow #12 is FEVER`), the Detector will immediately interrupt and print:
-  `🚨 ANOMALY DETECTED for Cow #12 | AI Prediction: SICK`.
 
 ### 5. Run the Backend (Phase 4)
 Open a **third terminal** to run the Java Spring Boot application. 
@@ -172,6 +172,12 @@ Open a **third terminal** to run the Java Spring Boot application.
 3. Click the **Green Run Arrow** next to class name.
 
 *Wait until you see "Started FieldguardBackendApplication". You can now verify the API is working by visiting: `http://localhost:8080/api/alerts`*
+
+### 6. View the Dashboard (Phase 5)
+1. Navigate to the `frontend/` folder in your file explorer.
+2. **Double-click** `index.html` to open it in your browser. 
+3. Watch as the dashboard status turns **Green (System Online)** and critical alerts appear in the table automatically. 
+
 ---
 
 ## Data Model
@@ -195,29 +201,6 @@ The simulator generates realistic JSON packets. Example payload:
 }
 ```
 
-### Simulation Logic Details
-- **Movement:** Animals perform a "random walk" but are nudged back if they cross the geofence radius of their assigned pasture.
-- **Vitals:**
-  - **Healthy:** metrics drift naturally around species baselines.
-  - **Fever:** Temperature spikes, heart rate increases, rumination drops.
-  - **Battery:** Slowly drains; simulates IoT hardware constraints.
-
----
-
-## Verifying Data Flow
-
-To ensure Phase 2 is talking to Phase 1, you can run a console consumer inside the Docker container:
-
-```powershell
-docker exec -it kafka kafka-console-consumer \
-  --bootstrap-server localhost:29092 \
-  --topic animal-health-stream \
-  --from-beginning
-```
-You should see a stream of JSON data appearing in real-time.
-
----
-
 ## Status & Roadmap
 
 | Phase | Component | Tech Stack | Status |
@@ -226,4 +209,4 @@ You should see a stream of JSON data appearing in real-time.
 | **2** | **Simulator** | Python, OOP, State Machines, Kafka Producer | ✅ **Completed** |
 | **3** | **Anomaly Detection** | Python, Scikit-Learn (Isolation Forest) | ✅ **Completed** |
 | **4** | **Backend Service** | Spring Boot, Kafka Consumer, JPA | ✅ **Completed** |
-| **5** | **Dashboard** | HTML/JS | ⏳ Next Step |
+| **5** | **Dashboard** | HTML5, CSS3, Javascript (Fetch API) | ✅ **Completed** |
